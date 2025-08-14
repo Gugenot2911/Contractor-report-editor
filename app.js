@@ -71,7 +71,109 @@ const App = {
                 this.saveForm(e.target);
             }
         });
+
+            // Для добавления новых позиций
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('add-item-btn')) {
+                this.addEquipmentItem(e.target);
+            }
+
+            // Для удаления позиций
+            if (e.target.classList.contains('remove-item-btn')) {
+                e.target.closest('.selected-item').remove();
+            }
+        });
+
+        document.addEventListener('change', (e) => {
+            if (e.target.classList.contains('equipment-select')) {
+                const select = e.target;
+                const container = select.closest('.select-with-custom');
+                const customInput = container.querySelector('.custom-equipment-input');
+
+                if (select.value === 'custom') {
+                    select.style.display = 'none';
+                    customInput.style.display = 'block';
+                    customInput.focus();
+                }
+            }
+        });
+
+        // Возврат к select при пустом ручном вводе
+        document.addEventListener('blur', (e) => {
+            if (e.target.classList.contains('custom-equipment-input') && !e.target.value) {
+                const input = e.target;
+                const container = input.closest('.select-with-custom');
+                const select = container.querySelector('.equipment-select');
+
+                input.style.display = 'none';
+                select.style.display = 'block';
+                select.value = '';
+            }
+        });
+
     },
+
+    // Метод для добавления оборудования
+    addEquipmentItem: function(button) {
+        const formGroup = button.closest('.form-group');
+        const select = formGroup.querySelector('.equipment-select');
+        const codeInput = formGroup.querySelector('.text-field');
+        const quantityInput = formGroup.querySelector('.quantity-field');
+        const commentInput = formGroup.querySelector('.comment-field');
+
+        // Проверка обязательных полей
+        if (!codeInput.value || codeInput.value.length !== 4) {
+            this.showToast('Введите корректный код склада (4 символа)', 'warning');
+            return;
+        }
+
+        if (!quantityInput.value || quantityInput.value < 1) {
+            this.showToast('Введите корректное количество', 'warning');
+            return;
+        }
+
+        // Определяем название оборудования
+        let equipmentName = commentInput.value.trim();
+        let equipmentId = 'comment_' + Date.now();
+
+        // Если выбрано оборудование из списка, используем его
+        if (select.value) {
+            equipmentId = select.value;
+            equipmentName = select.options[select.selectedIndex].text +
+                            (equipmentName ? ` (${equipmentName})` : '');
+        } else if (!equipmentName) {
+            equipmentName = "Без названия";
+        }
+
+        // Создаем элемент для добавленной позиции
+        const container = formGroup.querySelector('.selected-items-container');
+        const itemElement = document.createElement('div');
+        itemElement.className = 'selected-item';
+        itemElement.innerHTML = `
+            <div class="item-info">
+                <span class="item-name">${equipmentName}</span>
+                <span class="item-details">${codeInput.value} × ${quantityInput.value}</span>
+                ${!select.value ? '<span class="comment-badge">комментарий</span>' : ''}
+            </div>
+            <input type="hidden" name="equipment_id" value="${equipmentId}">
+            <input type="hidden" name="equipment_name" value="${equipmentName}">
+            <input type="hidden" name="storage_code" value="${codeInput.value}">
+            <input type="hidden" name="quantity" value="${quantityInput.value}">
+            <input type="hidden" name="is_comment" value="${!select.value}">
+            <button type="button" class="remove-item-btn">×</button>
+        `;
+
+        container.appendChild(itemElement);
+
+        // Сбрасываем форму
+        select.value = '';
+        codeInput.value = '';
+        quantityInput.value = '1';
+        commentInput.value = '';
+    },
+
+
+
 
     // Загрузка и обработка файла
     uploadAndProcessFile: function() {
@@ -97,6 +199,7 @@ const App = {
         this.elements.statusText.textContent = 'Обработка файла...';
         this.elements.statusText.className = 'upload-status processing';
 
+        // Используем стрелочные функции для сохранения контекста
         fetch('http://10.77.28.241:3000/main_report', {
             method: 'POST',
             body: formData
@@ -107,7 +210,6 @@ const App = {
                     throw new Error(text || 'Ошибка обработки файла');
                 });
             }
-
             return response.json();
         })
         .then(data => {
@@ -127,7 +229,7 @@ const App = {
             const errorMsg = error.message.includes('<!DOCTYPE html>')
                 ? 'Серверная ошибка (проверьте логи сервера)'
                 : error.message;
-            this.showError(new Error(errorMsg));
+            this.showError(errorMsg);
             this.elements.statusText.className = 'upload-status error';
         })
         .finally(() => {
@@ -256,7 +358,7 @@ const App = {
             [...this.equipmentCache]
                 //.sort((a, b) => a.days - b.days)
                 .forEach(item => {
-                    let optionText = `${item.text} (Партия: ${item.batch}`;
+                    let optionText = `${item.text} | (Партия: ${item.batch}  | ${item.id}`;
                     if (item.days) optionText += `, ${item.days} дн.`;
                     optionText += ')';
 
@@ -291,18 +393,84 @@ const App = {
         }
     },
 
+    updateResultsTable: function() {
+        const resultsBody = document.getElementById('results-body');
+        resultsBody.innerHTML = '';
+
+        if (!this.reportData) return;
+
+        this.reportData.forEach((site, index) => {
+            const form = document.querySelector(`form[data-id="${index}"]`);
+            if (!form) return;
+
+            const siteNumber = site['№ Объекта'] || 'Без номера';
+
+            // Добавляем демонтаж
+            const demontageItems = this.collectSelectedItems(form.querySelector('#demontage-items-container'));
+            demontageItems.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${siteNumber}</td>
+                    <td>Демонтаж</td>
+                    <td>${item.id}</td>
+                    <td>${item.name}</td>
+                    <td></td>
+                    <td>${item.quantity}</td>
+                    <td>${item.storage_code}</td>
+                    <td>${item.is_comment ? 'Комментарий: ' + item.name : ''}</td>
+                `;
+                resultsBody.appendChild(row);
+            });
+
+            // Добавляем монтаж
+            const montageItems = this.collectSelectedItems(form.querySelector('#montage-items-container'));
+            montageItems.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${siteNumber}</td>
+                    <td>Монтаж</td>
+                    <td>${item.id}</td>
+                    <td>${item.name}</td>
+                    <td>${item.quantity}</td>
+                    <td>${item.storage_code}</td>
+                    <td>${item.is_comment ? 'Комментарий: ' + item.name : ''}</td>
+                `;
+                resultsBody.appendChild(row);
+            });
+        });
+    },
+
     // Сохранение формы
+    // Модифицируем метод saveForm
     saveForm: function(form) {
         const formData = {
             id: form.getAttribute('data-id'),
-            demontage: $(form).find('.demontage-select').val() || [],
-            montage: $(form).find('.montage-select').val() || []
+            demontage: this.collectSelectedItems(form.querySelector('#demontage-items-container')),
+            montage: this.collectSelectedItems(form.querySelector('#montage-items-container'))
         };
+
         console.log('Сохраненные данные:', formData);
         this.showToast('Данные сохранены успешно!');
+
+        // Обновляем таблицу результатов
+        this.updateResultsTable();
     },
 
-    // Показ уведомлений
+    // Метод для сбора выбранных позиций
+    collectSelectedItems: function(container) {
+        const items = [];
+        container.querySelectorAll('.selected-item').forEach(item => {
+            items.push({
+                id: item.querySelector('input[name="equipment_id"]').value,
+                name: item.querySelector('input[name="equipment_name"]').value,
+                storage_code: item.querySelector('input[name="storage_code"]').value,
+                quantity: item.querySelector('input[name="quantity"]').value,
+                is_comment: item.querySelector('input[name="is_comment"]').value === 'true'
+            });
+        });
+        return items;
+    },
+
     showToast: function(message, type = 'success') {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;

@@ -42,8 +42,26 @@
         </div>
 
         <div class="right-section">
-            <h1>Детали</h1>
-            <p>Здесь будет дополнительная информация.</p>
+            <h1>Результаты операций</h1>
+            <div class="results-container">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>№ Объекта</th>
+                            <th>Тип операции</th>
+                            <th>№ ОС/Партии</th>
+                            <th>CПП-элемент</th>
+                            <th>Наименование</th>
+                            <th>Кол-во</th>
+                            <th>Склад</th>
+                            <th>Комментарий</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-body">
+                        <!-- Данные будут добавляться через JS -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -63,15 +81,42 @@
 
     <template id="equipment-form-template">
         <form class="work-form" data-id="">
-            <div class="form-group">
-                <h3>Демонтаж</h3>
-                <select class="equipment-select demontage-select" multiple="multiple"></select>
-            </div>
-            <div class="form-group">
-                <h3>Монтаж</h3>
-                <select class="equipment-select montage-select" multiple="multiple">
-                    <option value="">-- Загрузите оборудование --</option>
-                </select>
+            <div class="form-section">
+                <div class="form-group demontage-group">
+                    <h3>Демонтаж</h3>
+
+                    <div class="selected-items-container" id="demontage-items-container"></div>
+
+                    <div class="selection-form">
+                        <select class="equipment-select demontage-select">
+                            <option value="">-- Выберите оборудование --</option>
+                        </select>
+                        <div class="additional-fields">
+                            <input type="text" class="text-field" placeholder="Код склада (4 символа)" maxlength="4" pattern=".{4}" title="Ровно 4 символа">
+                            <input type="number" class="quantity-field" placeholder="Кол-во" min="1" value="1">
+                            <input type="text" class="comment-field" placeholder="Комментарий (необязательно)">
+                            <button type="button" class="add-item-btn">Добавить</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group montage-group">
+                    <h3>Монтаж</h3>
+
+                    <div class="selected-items-container" id="montage-items-container"></div>
+
+                    <div class="selection-form">
+                        <select class="equipment-select montage-select">
+                            <option value="">-- Выберите оборудование --</option>
+                        </select>
+                        <div class="additional-fields">
+                            <input type="text" class="text-field" placeholder="Код склада (4 символа)" maxlength="4" pattern=".{4}" title="Ровно 4 символа">
+                            <input type="number" class="quantity-field" placeholder="Кол-во" min="1" value="1">
+                            <input type="text" class="comment-field" placeholder="Комментарий (необязательно)">
+                            <button type="button" class="add-item-btn">Добавить</button>
+                        </div>
+                    </div>
+                </div>
             </div>
             <button type="submit" class="save-btn">Сохранить</button>
         </form>
